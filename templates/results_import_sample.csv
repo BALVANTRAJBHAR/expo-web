@@ -1,0 +1,4 @@
+exam_name,exam_date,session,class_name,roll_no,registration_no,student_name,dob,mobile,marks,status_text,result_status
+Samanya Gyan Pratiyogita,2026-02-08,2026,Class 10,101,REG-0001,Amit Kumar,2008-04-12,9000000001,78,pass,published
+Samanya Gyan Pratiyogita,2026-02-08,2026,Class 10,102,REG-0002,Neha Sharma,2008-07-21,9000000002,65,pass,published
+Samanya Gyan Pratiyogita,2026-02-08,2026,Class 10,103,REG-0003,Rahul Singh,2008-01-15,9000000003,32,fail,published
