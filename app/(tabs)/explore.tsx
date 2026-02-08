@@ -24,13 +24,14 @@ type ResultRow = {
     id?: string;
     exam_name: string;
     exam_date: string;
-    sessions?: {
-      id?: string;
-      name: string;
-    } | null;
     classes?: {
       id?: string;
       name: string;
+      session_id?: string | null;
+      sessions?: {
+        id?: string;
+        name: string;
+      } | null;
     } | null;
   } | null;
 };
@@ -154,18 +155,34 @@ export default function ResultsScreen() {
     let query = supabase
       .from('results')
       .select(
-        'id, roll_no, registration_no, student_name, dob, mobile, marks, status_text, result_status, exams(id, exam_name, exam_date, sessions(id, name), classes(id, name))'
+        'id, roll_no, registration_no, student_name, dob, mobile, marks, status_text, result_status, exams(id, exam_name, exam_date, classes(id, name, session_id, sessions(id, name)))'
       )
       .or(filter)
       .eq('result_status', 'published')
       .limit(1);
 
     if (sessionFilter) {
+      const { data: classRows, error: classErr } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('status', 'active')
+        .eq('session_id', sessionFilter);
+      if (classErr) {
+        setError(classErr.message);
+        setLoading(false);
+        return;
+      }
+      const classIds = (classRows ?? []).map((x: any) => x.id).filter(Boolean);
+      if (classIds.length === 0) {
+        setError('Is session me koi class nahi mila.');
+        setLoading(false);
+        return;
+      }
       const { data: examRows, error: examErr } = await supabase
         .from('exams')
         .select('id')
         .eq('status', 'active')
-        .eq('session_id', sessionFilter);
+        .in('class_id', classIds);
       if (examErr) {
         setError(examErr.message);
         setLoading(false);
@@ -238,7 +255,7 @@ export default function ResultsScreen() {
   const createResultHtml = (data: ResultRow) => {
     const examName = data.exams?.exam_name ?? 'N/A';
     const examDate = data.exams?.exam_date ?? '';
-    const sessionName = data.exams?.sessions?.name ?? '';
+    const sessionName = data.exams?.classes?.sessions?.name ?? '';
     const className = data.exams?.classes?.name ?? '';
     const logoTag = logoDataUrl
       ? `<img src="${logoDataUrl}" alt="SEF" style="height:50px;" />`
@@ -299,7 +316,7 @@ export default function ResultsScreen() {
         Registration: result.registration_no ?? '-',
         Marks: result.marks ?? '-',
         Status: result.status_text,
-        Session: result.exams?.sessions?.name ?? 'N/A',
+        Session: result.exams?.classes?.sessions?.name ?? 'N/A',
         Exam: result.exams?.exam_name ?? 'N/A',
         Class: result.exams?.classes?.name ?? 'N/A',
       },
@@ -373,7 +390,7 @@ export default function ResultsScreen() {
         doc.text(`Exam Date: ${firstExam.exam_date}`, 16, y);
         y += line;
       }
-      const sess = firstExam.sessions?.name;
+      const sess = firstExam.classes?.sessions?.name;
       if (sess) {
         doc.text(`Session: ${sess}`, 16, y);
         y += line;
@@ -395,15 +412,31 @@ export default function ResultsScreen() {
 
     let query = supabase
       .from('results')
-      .select('roll_no, registration_no, student_name, marks, status_text, exams(id, exam_name, session_id, sessions(id, name), classes(id, name))')
+      .select(
+        'roll_no, registration_no, student_name, marks, status_text, exams(id, exam_name, class_id, classes(id, name, session_id, sessions(id, name)))'
+      )
       .eq('result_status', 'published');
 
     if (sessionFilter) {
+      const { data: classRows, error: classErr } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('status', 'active')
+        .eq('session_id', sessionFilter);
+      if (classErr) {
+        setError(classErr.message);
+        return;
+      }
+      const classIds = (classRows ?? []).map((x: any) => x.id).filter(Boolean);
+      if (classIds.length === 0) {
+        setError('Is session me koi class nahi mila.');
+        return;
+      }
       const { data: examRows, error: examErr } = await supabase
         .from('exams')
         .select('id')
         .eq('status', 'active')
-        .eq('session_id', sessionFilter);
+        .in('class_id', classIds);
       if (examErr) {
         setError(examErr.message);
         return;
@@ -452,7 +485,7 @@ export default function ResultsScreen() {
         Registration: row.registration_no ?? '-',
         Marks: row.marks ?? '-',
         Status: row.status_text,
-        Session: (row as any).exams?.sessions?.name ?? 'N/A',
+        Session: (row as any).exams?.classes?.sessions?.name ?? 'N/A',
         Exam: (row as any).exams?.exam_name ?? 'N/A',
         Class: (row as any).exams?.classes?.name ?? 'N/A',
       }));
@@ -626,8 +659,8 @@ export default function ResultsScreen() {
             {result.marks !== null ? (
               <Text style={styles.resultScore}>Marks: {result.marks}</Text>
             ) : null}
-            {result.exams?.sessions?.name ? (
-              <Text style={styles.resultExam}>Session: {result.exams.sessions.name}</Text>
+            {result.exams?.classes?.sessions?.name ? (
+              <Text style={styles.resultExam}>Session: {result.exams.classes.sessions.name}</Text>
             ) : null}
             {result.exams ? <Text style={styles.resultExam}>Exam: {result.exams.exam_name}</Text> : null}
             {result.exams?.classes?.name ? <Text style={styles.resultExam}>Class: {result.exams.classes.name}</Text> : null}

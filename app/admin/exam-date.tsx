@@ -17,6 +17,7 @@ export default function ExamDateScreen() {
   const [dateValue, setDateValue] = useState<Date>(new Date());
   const [activeSessions, setActiveSessions] = useState<{ id: string; name: string }[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [savedExams, setSavedExams] = useState<{ id: string; exam_name: string; exam_date: string; class_id: string | null }[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [existingExamId, setExistingExamId] = useState<string>('');
   const [form, setForm] = useState({
@@ -70,6 +71,13 @@ export default function ExamDateScreen() {
         const defaultSession = sessions?.[0]?.name ?? '';
         setForm((prev) => ({ ...prev, session: prev.session || defaultSession }));
       }
+      const { data: recentExams } = await supabase
+        .from('exams')
+        .select('id, exam_name, exam_date, class_id')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(15);
+      if (active) setSavedExams(recentExams ?? []);
       setAuthReady(true);
     };
 
@@ -160,6 +168,13 @@ export default function ExamDateScreen() {
         setExistingExamId('');
         setSelectedClassId('');
         setForm((prev) => ({ ...prev, exam_name: '', exam_date: '' }));
+        const { data: recentExams } = await supabase
+          .from('exams')
+          .select('id, exam_name, exam_date, class_id')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setSavedExams(recentExams ?? []);
       }
     } catch (err) {
       setError('Save failed.');
@@ -180,6 +195,7 @@ export default function ExamDateScreen() {
     let query = supabase
       .from('exams')
       .select('id, exam_name, exam_date, class_id')
+      .eq('status', 'active')
       .ilike('exam_name', `%${term}%`)
       .order('exam_date', { ascending: false })
       .limit(1);
@@ -225,14 +241,24 @@ export default function ExamDateScreen() {
           setSaving(true);
           setError(null);
           setStatus('');
-          const { error: deleteError } = await supabase.from('exams').delete().eq('id', existingExamId);
+          const { error: deleteError } = await supabase
+            .from('exams')
+            .update({ status: 'inactive' })
+            .eq('id', existingExamId);
           if (deleteError) {
             setError(deleteError.message);
           } else {
-            setStatus('Exam deleted successfully.');
+            setStatus('Exam removed successfully.');
             setExistingExamId('');
             setSelectedClassId('');
             setForm((prev) => ({ ...prev, exam_name: '', exam_date: '' }));
+            const { data: recentExams } = await supabase
+              .from('exams')
+              .select('id, exam_name, exam_date, class_id')
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(15);
+            setSavedExams(recentExams ?? []);
           }
           setSaving(false);
         },
@@ -339,7 +365,21 @@ export default function ExamDateScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
-        
+        {savedExams.length ? (
+          <View style={styles.savedWrap}>
+            <Text style={styles.savedTitle}>Saved Exams (Newest First)</Text>
+            <View style={styles.savedHeaderRow}>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Exam</Text>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Date</Text>
+            </View>
+            {savedExams.map((row) => (
+              <View key={row.id} style={styles.savedRow}>
+                <Text style={styles.savedCell}>{row.exam_name}</Text>
+                <Text style={styles.savedCell}>{row.exam_date}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -389,4 +429,45 @@ const styles = StyleSheet.create({
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 12, fontFamily: 'Times New Roman' },
   status: { color: Colors.light.accent, fontWeight: '600', fontFamily: 'Times New Roman' },
   errorText: { color: '#b3261e', fontWeight: '600', fontFamily: 'Times New Roman' },
+  savedWrap: {
+    marginTop: 10,
+    width: '100%',
+    backgroundColor: Colors.light.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    overflow: 'hidden',
+  },
+  savedTitle: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    fontWeight: '700',
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.light.surfaceAlt,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedCell: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderCell: {
+    fontWeight: '700',
+    color: Colors.light.icon,
+  },
 });

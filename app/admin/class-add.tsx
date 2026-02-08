@@ -16,6 +16,7 @@ export default function ClassAddScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [existingClassId, setExistingClassId] = useState<string>('');
+  const [savedClasses, setSavedClasses] = useState<{ id: string; name: string; session_id: string | null }[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -45,9 +46,17 @@ export default function ClassAddScreen() {
         .eq('status', 'active')
         .order('name', { ascending: false });
 
+      const { data: recentClasses } = await supabase
+        .from('classes')
+        .select('id, name, session_id')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(15);
+
       if (active) {
         setSessions(sessionRows ?? []);
         setSelectedSessionId(sessionRows?.[0]?.id ?? '');
+        setSavedClasses(recentClasses ?? []);
       }
       setAuthReady(true);
     };
@@ -91,6 +100,13 @@ export default function ClassAddScreen() {
       setStatus(existingClassId || existing?.id ? 'Class updated successfully.' : 'Class saved successfully.');
       setExistingClassId('');
       setClassName('');
+      const { data: recentClasses } = await supabase
+        .from('classes')
+        .select('id, name, session_id')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(15);
+      setSavedClasses(recentClasses ?? []);
     }
     setSaving(false);
   };
@@ -150,6 +166,13 @@ export default function ClassAddScreen() {
             setStatus('Class removed successfully.');
             setExistingClassId('');
             setClassName('');
+            const { data: recentClasses } = await supabase
+              .from('classes')
+              .select('id, name, session_id')
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(15);
+            setSavedClasses(recentClasses ?? []);
           }
           setSaving(false);
         },
@@ -222,6 +245,22 @@ export default function ClassAddScreen() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {status ? <Text style={styles.status}>{status}</Text> : null}
+
+        {savedClasses.length ? (
+          <View style={styles.savedWrap}>
+            <Text style={styles.savedTitle}>Saved Classes (Newest First)</Text>
+            <View style={styles.savedHeaderRow}>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Class</Text>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Session</Text>
+            </View>
+            {savedClasses.map((row) => (
+              <View key={row.id} style={styles.savedRow}>
+                <Text style={styles.savedCell}>{row.name}</Text>
+                <Text style={styles.savedCell}>{sessions.find((s) => s.id === row.session_id)?.name ?? '-'}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -264,4 +303,45 @@ const styles = StyleSheet.create({
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 12, fontFamily: 'Times New Roman' },
   status: { color: Colors.light.accent, fontWeight: '600', fontFamily: 'Times New Roman' },
   errorText: { color: '#b3261e', fontWeight: '600', fontFamily: 'Times New Roman' },
+  savedWrap: {
+    marginTop: 10,
+    width: '100%',
+    backgroundColor: Colors.light.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    overflow: 'hidden',
+  },
+  savedTitle: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    fontWeight: '700',
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.light.surfaceAlt,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedCell: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderCell: {
+    fontWeight: '700',
+    color: Colors.light.icon,
+  },
 });

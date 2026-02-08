@@ -20,6 +20,9 @@ export default function SingleInsertScreen() {
   const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [exams, setExams] = useState<{ id: string; exam_name: string; exam_date: string; class_id: string | null; classes?: { name: string }[] | null }[]>([]);
+  const [savedResults, setSavedResults] = useState<
+    { id: string; roll_no: string; registration_no: string | null; student_name: string; marks: number | null; status_text: string }[]
+  >([]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [existingResultId, setExistingResultId] = useState<string>('');
@@ -86,9 +89,17 @@ export default function SingleInsertScreen() {
         .eq('status', 'active')
         .order('exam_date', { ascending: true });
 
+      const { data: recentResults } = await supabase
+        .from('results')
+        .select('id, roll_no, registration_no, student_name, marks, status_text')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(15);
+
       setSessions(sessionRows ?? []);
       setClasses(classRows ?? []);
       setExams(examRows ?? []);
+      setSavedResults(recentResults ?? []);
       const defaultSession = sessionRows?.[0]?.name ?? '';
       if (defaultSession) {
         setForm((prev) => ({ ...prev, session: prev.session || defaultSession }));
@@ -174,6 +185,7 @@ export default function SingleInsertScreen() {
         .select('id')
         .eq('exam_id', examId)
         .eq('roll_no', form.roll_no.trim())
+        .eq('status', 'active')
         .limit(1)
         .maybeSingle();
 
@@ -203,6 +215,13 @@ export default function SingleInsertScreen() {
       } else {
         setStatus(existingResultId ? 'Result updated successfully.' : 'Result saved successfully.');
         setExistingResultId('');
+        const { data: recentResults } = await supabase
+          .from('results')
+          .select('id, roll_no, registration_no, student_name, marks, status_text')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setSavedResults(recentResults ?? []);
       }
     } catch (err) {
       setError('Save failed. Please try again.');
@@ -229,6 +248,7 @@ export default function SingleInsertScreen() {
       .select('id, roll_no, registration_no, student_name, dob, marks, status_text, result_status')
       .eq('exam_id', selectedExamId)
       .eq('roll_no', roll)
+      .eq('status', 'active')
       .limit(1)
       .maybeSingle();
 
@@ -271,12 +291,22 @@ export default function SingleInsertScreen() {
           setSaving(true);
           setError(null);
           setStatus('');
-          const { error: deleteError } = await supabase.from('results').delete().eq('id', existingResultId);
+          const { error: deleteError } = await supabase
+            .from('results')
+            .update({ status: 'inactive' })
+            .eq('id', existingResultId);
           if (deleteError) {
             setError(deleteError.message);
           } else {
-            setStatus('Result deleted successfully.');
+            setStatus('Result removed successfully.');
             setExistingResultId('');
+            const { data: recentResults } = await supabase
+              .from('results')
+              .select('id, roll_no, registration_no, student_name, marks, status_text')
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(15);
+            setSavedResults(recentResults ?? []);
           }
           setSaving(false);
         },
@@ -479,6 +509,24 @@ export default function SingleInsertScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {status ? <Text style={styles.status}>{status}</Text> : null}
 
+        {savedResults.length ? (
+          <View style={styles.savedWrap}>
+            <Text style={styles.savedTitle}>Saved Results (Newest First)</Text>
+            <View style={styles.savedHeaderRow}>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Student</Text>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Roll</Text>
+              <Text style={[styles.savedCell, styles.savedHeaderCell]}>Marks</Text>
+            </View>
+            {savedResults.map((row) => (
+              <View key={row.id} style={styles.savedRow}>
+                <Text style={styles.savedCell}>{row.student_name}</Text>
+                <Text style={styles.savedCell}>{row.roll_no}</Text>
+                <Text style={styles.savedCell}>{row.marks ?? '-'}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
       </View>
     </ScrollView>
   );
@@ -540,4 +588,45 @@ const styles = StyleSheet.create({
   deleteText: { color: '#fff', fontWeight: '700', fontSize: 12, fontFamily: 'Times New Roman' },
   status: { color: Colors.light.accent, fontWeight: '600', fontFamily: 'Times New Roman' },
   errorText: { color: '#b3261e', fontWeight: '600', fontFamily: 'Times New Roman' },
+  savedWrap: {
+    marginTop: 10,
+    width: '100%',
+    backgroundColor: Colors.light.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    overflow: 'hidden',
+  },
+  savedTitle: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    fontWeight: '700',
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.light.surfaceAlt,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  savedCell: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.light.text,
+    fontFamily: 'Times New Roman',
+  },
+  savedHeaderCell: {
+    fontWeight: '700',
+    color: Colors.light.icon,
+  },
 });
