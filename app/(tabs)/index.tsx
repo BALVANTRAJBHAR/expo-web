@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image as RNImage, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Linking, Image as RNImage, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 import { TopMenu } from '@/components/top-menu';
 import { Colors, Palette } from '@/constants/theme';
@@ -20,10 +21,58 @@ type UpcomingExam = {
 
 export default function HomeScreen() {
   const theme = Colors.light;
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const [upcoming, setUpcoming] = useState<UpcomingExam[]>([]);
   const [loadingUpcoming, setLoadingUpcoming] = useState(true);
   const isWide = width >= 720;
+
+  const ensureLogin = async (nextPath: string) => {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user) {
+      router.replace({ pathname: '/auth/login' as any, params: { next: nextPath } } as any);
+      return false;
+    }
+    return true;
+  };
+
+  const requireAdmin = async (nextPath: string) => {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user) {
+      router.replace({ pathname: '/auth/login' as any, params: { next: nextPath } } as any);
+      return false;
+    }
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    const role = (profile as any)?.role ?? null;
+    if (role !== 'admin' && role !== 'staff') {
+      router.replace('/(tabs)' as any);
+      return false;
+    }
+    return true;
+  };
+
+  const handleHighlightPress = async (title: string) => {
+    if (title === 'Result Search') {
+      router.push('/(tabs)/explore' as any);
+      return;
+    }
+    if (title === 'Upcoming Exams') {
+      router.push('/(tabs)/exams' as any);
+      return;
+    }
+    if (title === 'Admin Dashboard') {
+      const ok = await requireAdmin('/admin/bulk-import');
+      if (ok) router.push('/admin/bulk-import' as any);
+    }
+  };
+
+  const handleRibbonPress = async () => {
+    const nextPath = '/student/register';
+    const ok = await ensureLogin(nextPath);
+    if (ok) router.push(nextPath as any);
+  };
 
   useEffect(() => {
     let active = true;
@@ -66,7 +115,9 @@ export default function HomeScreen() {
           <Text style={styles.heroNoteText}>Pratiyogita nishulk hai • Certificate + Merit list</Text>
         </View>
         <View style={styles.heroRibbon}>
-          <Text style={styles.heroRibbonText}>2026 • Free Registration • Merit Based Awards</Text>
+          <TouchableOpacity onPress={handleRibbonPress}>
+            <Text style={styles.heroRibbonText}>2026 • Free Registration • Merit Based Awards</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -122,10 +173,10 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Highlights</Text>
         <View style={styles.cardGrid}>
           {highlights.map((item) => (
-            <View key={item.title} style={styles.card}>
+            <TouchableOpacity key={item.title} style={styles.card} onPress={() => handleHighlightPress(item.title)}>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardDesc}>{item.desc}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
@@ -154,8 +205,19 @@ export default function HomeScreen() {
         </View>
         <View style={styles.sectionBox}>
           <Text style={styles.sectionTitle}>Contact</Text>
-          <Text style={styles.cardDesc}>Phone: 9005924205</Text>
-          <Text style={styles.cardDesc}>Address: Gorai, Gopiganj, Bhadohi</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('tel:9005924205')}>
+            <Text style={styles.cardDesc}>Phone: 9005924205</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL(
+                'https://www.google.com/maps/search/?api=1&query=' +
+                  encodeURIComponent('Gorai, Gopiganj, Bhadohi')
+              )
+            }
+          >
+            <Text style={styles.cardDesc}>Address: Gorai, Gopiganj, Bhadohi</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -168,7 +230,9 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>© BT SOFTECH</Text>
+        <TouchableOpacity onPress={() => Linking.openURL('https://share.google/4YPN2GjnBqI2jv1Z9')}>
+          <Text style={styles.footerText}>© BT SOFTECH</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
