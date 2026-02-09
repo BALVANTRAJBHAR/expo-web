@@ -147,34 +147,46 @@ export default function ClassAddScreen() {
       setError('Search and load a class first.');
       return;
     }
+
+    const runDelete = async () => {
+      setSaving(true);
+      setError(null);
+      setStatus('');
+      const { error: deleteError } = await supabase
+        .from('classes')
+        .update({ status: 'inactive' })
+        .eq('id', existingClassId);
+      if (deleteError) {
+        setError(deleteError.message);
+      } else {
+        setStatus('Class removed successfully.');
+        setExistingClassId('');
+        setClassName('');
+        const { data: recentClasses } = await supabase
+          .from('classes')
+          .select('id, name, session_id')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setSavedClasses(recentClasses ?? []);
+      }
+      setSaving(false);
+    };
+
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' ? window.confirm('Are you sure you want to delete this class?') : false;
+      if (!ok) return;
+      await runDelete();
+      return;
+    }
+
     Alert.alert('Delete Class', 'Are you sure you want to delete this class?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          setSaving(true);
-          setError(null);
-          setStatus('');
-          const { error: deleteError } = await supabase
-            .from('classes')
-            .update({ status: 'inactive' })
-            .eq('id', existingClassId);
-          if (deleteError) {
-            setError(deleteError.message);
-          } else {
-            setStatus('Class removed successfully.');
-            setExistingClassId('');
-            setClassName('');
-            const { data: recentClasses } = await supabase
-              .from('classes')
-              .select('id, name, session_id')
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(15);
-            setSavedClasses(recentClasses ?? []);
-          }
-          setSaving(false);
+        onPress: () => {
+          runDelete();
         },
       },
     ]);

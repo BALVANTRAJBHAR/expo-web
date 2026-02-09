@@ -211,7 +211,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             onPress={() =>
               Linking.openURL(
-                'https://www.google.com/maps?q=' + encodeURIComponent('Gorai, Gopiganj, Bhadohi')
+                'https://www.google.com/maps/place/' +
+                  encodeURIComponent('Gopiganj, Uttar Pradesh 221303')
               )
             }
           >

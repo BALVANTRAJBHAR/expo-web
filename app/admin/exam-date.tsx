@@ -232,35 +232,47 @@ export default function ExamDateScreen() {
       setError('Search and load an exam first.');
       return;
     }
+
+    const runDelete = async () => {
+      setSaving(true);
+      setError(null);
+      setStatus('');
+      const { error: deleteError } = await supabase
+        .from('exams')
+        .update({ status: 'inactive' })
+        .eq('id', existingExamId);
+      if (deleteError) {
+        setError(deleteError.message);
+      } else {
+        setStatus('Exam removed successfully.');
+        setExistingExamId('');
+        setSelectedClassId('');
+        setForm((prev) => ({ ...prev, exam_name: '', exam_date: '' }));
+        const { data: recentExams } = await supabase
+          .from('exams')
+          .select('id, exam_name, exam_date, class_id')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setSavedExams(recentExams ?? []);
+      }
+      setSaving(false);
+    };
+
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' ? window.confirm('Are you sure you want to delete this exam?') : false;
+      if (!ok) return;
+      await runDelete();
+      return;
+    }
+
     Alert.alert('Delete Exam', 'Are you sure you want to delete this exam?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          setSaving(true);
-          setError(null);
-          setStatus('');
-          const { error: deleteError } = await supabase
-            .from('exams')
-            .update({ status: 'inactive' })
-            .eq('id', existingExamId);
-          if (deleteError) {
-            setError(deleteError.message);
-          } else {
-            setStatus('Exam removed successfully.');
-            setExistingExamId('');
-            setSelectedClassId('');
-            setForm((prev) => ({ ...prev, exam_name: '', exam_date: '' }));
-            const { data: recentExams } = await supabase
-              .from('exams')
-              .select('id, exam_name, exam_date, class_id')
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(15);
-            setSavedExams(recentExams ?? []);
-          }
-          setSaving(false);
+        onPress: () => {
+          runDelete();
         },
       },
     ]);

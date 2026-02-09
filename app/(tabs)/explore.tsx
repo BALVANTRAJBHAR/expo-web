@@ -145,6 +145,11 @@ export default function ResultsScreen() {
       return;
     }
 
+    if (role !== 'admin' && role !== 'staff' && !sessionFilter) {
+      setError('Session select karna required hai.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -275,21 +280,31 @@ export default function ResultsScreen() {
               </div>
             </div>
             <hr />
-            <p><strong>Name:</strong> ${data.student_name}</p>
-            ${father ? `<p><strong>Father Name:</strong> ${father}</p>` : ''}
-            ${mother ? `<p><strong>Mother Name:</strong> ${mother}</p>` : ''}
-            ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
-            ${data.dob ? `<p><strong>DOB:</strong> ${data.dob}</p>` : ''}
-            ${data.mobile ? `<p><strong>Mobile:</strong> ${data.mobile}</p>` : ''}
-            <p><strong>Roll No:</strong> ${data.roll_no}</p>
-            ${data.registration_no ? `<p><strong>Reg No:</strong> ${data.registration_no}</p>` : ''}
-            <p><strong>Status:</strong> ${data.status_text.toUpperCase()}</p>
-            <p><strong>Marks:</strong> ${data.marks ?? '-'} </p>
-            ${sessionName ? `<p><strong>Session:</strong> ${sessionName}</p>` : ''}
-            <p><strong>Exam:</strong> ${examName}</p>
-            ${examDate ? `<p><strong>Exam Date:</strong> ${examDate}</p>` : ''}
-            ${className ? `<p><strong>Class:</strong> ${className}</p>` : ''}
-            <div style="margin-top:40px; text-align:right;">Authorized Signature</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div>
+                <p><strong>Name:</strong> ${data.student_name}</p>
+                ${father ? `<p><strong>Father Name:</strong> ${father}</p>` : ''}
+                ${mother ? `<p><strong>Mother Name:</strong> ${mother}</p>` : ''}
+                ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
+                ${data.dob ? `<p><strong>DOB:</strong> ${data.dob}</p>` : ''}
+                ${data.mobile ? `<p><strong>Mobile:</strong> ${data.mobile}</p>` : ''}
+              </div>
+              <div>
+                <p><strong>Roll No:</strong> ${data.roll_no}</p>
+                ${data.registration_no ? `<p><strong>Reg No:</strong> ${data.registration_no}</p>` : ''}
+                <p><strong>Status:</strong> ${data.status_text.toUpperCase()}</p>
+                <p><strong>Marks:</strong> ${data.marks ?? '-'} </p>
+                ${sessionName ? `<p><strong>Session:</strong> ${sessionName}</p>` : ''}
+                <p><strong>Exam:</strong> ${examName}</p>
+                ${examDate ? `<p><strong>Exam Date:</strong> ${examDate}</p>` : ''}
+                ${className ? `<p><strong>Class:</strong> ${className}</p>` : ''}
+              </div>
+            </div>
+            <div style="margin-top:26px; display:flex; justify-content:flex-end;">
+              <div style="min-width:220px; text-align:center;">
+                <div style="border-top:1px solid #555; padding-top:6px;">Authorized Signature</div>
+              </div>
+            </div>
           </div>
         </body>
       </html>
@@ -343,64 +358,59 @@ export default function ResultsScreen() {
     const { jsPDF } = await import('jspdf/dist/jspdf.es.min.js');
     const doc = new jsPDF();
     const startY = addPdfHeader(doc, 'Result Report');
+    const cardTop = startY - 4;
+    const cardHeight = 110;
+    const cardBottom = cardTop + cardHeight;
     doc.setDrawColor(220);
-    doc.rect(12, startY - 4, 186, 96);
-    doc.setFontSize(12);
-    let y = startY + 6;
-    const line = 10;
-    doc.text(`Name: ${result.student_name}`, 16, y);
-    y += line;
-    if (result.dob) {
-      doc.text(`DOB: ${result.dob}`, 16, y);
-      y += line;
-    }
-    if (result.mobile) {
-      doc.text(`Mobile: ${result.mobile}`, 16, y);
-      y += line;
-    }
-    if (resultStudent?.father_name) {
-      doc.text(`Father: ${resultStudent.father_name}`, 16, y);
-      y += line;
-    }
-    if (resultStudent?.mother_name) {
-      doc.text(`Mother: ${resultStudent.mother_name}`, 16, y);
-      y += line;
-    }
-    if (resultStudent?.address) {
-      doc.setFontSize(10);
-      doc.text(`Address: ${resultStudent.address}`, 16, y, { maxWidth: 178 });
-      doc.setFontSize(12);
-      y += line;
-    }
-    doc.text(`Roll No: ${result.roll_no}`, 16, y);
-    y += line;
-    if (result.registration_no) {
-      doc.text(`Reg No: ${result.registration_no}`, 16, y);
-      y += line;
-    }
-    doc.text(`Status: ${result.status_text.toUpperCase()}`, 16, y);
-    y += line;
-    doc.text(`Marks: ${result.marks ?? '-'}`, 16, y);
-    y += line;
+    doc.rect(12, cardTop, 186, cardHeight);
+    doc.setFontSize(11);
+
+    const leftX = 16;
+    const rightX = 110;
+    const colWidth = 86;
+    const lineH = 8;
+    const maxY = cardBottom - 26;
+    let yLeft = startY + 6;
+    let yRight = startY + 6;
+
+    const writeField = (x: number, y: number, label: string, value: string, maxWidth: number) => {
+      const text = `${label}: ${value}`;
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines as any, x, y);
+      return lines.length * lineH;
+    };
+
+    const safeAdd = (side: 'left' | 'right', label: string, value: any) => {
+      if (value === null || value === undefined || value === '') return;
+      const x = side === 'left' ? leftX : rightX;
+      const y = side === 'left' ? yLeft : yRight;
+      if (y > maxY) return;
+      const used = writeField(x, y, label, String(value), colWidth);
+      if (side === 'left') yLeft += used;
+      else yRight += used;
+    };
+
+    safeAdd('left', 'Name', result.student_name);
+    safeAdd('left', 'DOB', result.dob);
+    safeAdd('left', 'Mobile', result.mobile);
+    safeAdd('left', 'Father', resultStudent?.father_name);
+    safeAdd('left', 'Mother', resultStudent?.mother_name);
+    safeAdd('left', 'Address', resultStudent?.address);
+
+    safeAdd('right', 'Roll No', result.roll_no);
+    safeAdd('right', 'Reg No', result.registration_no);
+    safeAdd('right', 'Status', result.status_text.toUpperCase());
+    safeAdd('right', 'Marks', result.marks ?? '-');
+
     const firstExam = result.exams;
     if (firstExam) {
-      doc.text(`Exam: ${firstExam.exam_name}`, 16, y);
-      y += line;
-      if (firstExam.exam_date) {
-        doc.text(`Exam Date: ${firstExam.exam_date}`, 16, y);
-        y += line;
-      }
-      const sess = firstExam.classes?.sessions?.name;
-      if (sess) {
-        doc.text(`Session: ${sess}`, 16, y);
-        y += line;
-      }
-      const cls = firstExam.classes?.name;
-      if (cls) {
-        doc.text(`Class: ${cls}`, 16, y);
-      }
+      safeAdd('right', 'Exam', firstExam.exam_name);
+      safeAdd('right', 'Exam Date', firstExam.exam_date);
+      safeAdd('right', 'Session', firstExam.classes?.sessions?.name);
+      safeAdd('right', 'Class', firstExam.classes?.name);
     }
-    drawSignature(doc, startY + 64);
+
+    drawSignature(doc, cardBottom - 16);
     doc.save(`result-${result.roll_no}.pdf`);
   };
 
@@ -596,10 +606,10 @@ export default function ResultsScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Session (Optional)</Text>
+          <Text style={styles.label}>Session {role === 'admin' || role === 'staff' ? '(Optional)' : '(Required)'}</Text>
           <View style={styles.pickerWrapper}>
             <Picker selectedValue={sessionFilter} onValueChange={(value) => setSessionFilter(String(value))}>
-              <Picker.Item label="All Sessions" value="" />
+              <Picker.Item label={role === 'admin' || role === 'staff' ? 'All Sessions' : 'Select session'} value="" />
               {sessionOptions.map((s) => (
                 <Picker.Item key={s.id} label={s.name} value={s.id} />
               ))}
@@ -648,22 +658,70 @@ export default function ResultsScreen() {
           <View style={styles.resultCard}>
             <Text style={styles.sectionTitle}>Result Found</Text>
             <Text style={styles.resultName}>{result.student_name}</Text>
-            {resultStudent?.father_name ? <Text style={styles.resultMeta}>Father: {resultStudent.father_name}</Text> : null}
-            {resultStudent?.mother_name ? <Text style={styles.resultMeta}>Mother: {resultStudent.mother_name}</Text> : null}
-            {resultStudent?.address ? <Text style={styles.resultMeta}>Address: {resultStudent.address}</Text> : null}
-            <Text style={styles.resultMeta}>Roll No: {result.roll_no}</Text>
-            {result.registration_no ? (
-              <Text style={styles.resultMeta}>Reg No: {result.registration_no}</Text>
-            ) : null}
-            <Text style={styles.resultMeta}>Status: {result.status_text.toUpperCase()}</Text>
-            {result.marks !== null ? (
-              <Text style={styles.resultScore}>Marks: {result.marks}</Text>
-            ) : null}
-            {result.exams?.classes?.sessions?.name ? (
-              <Text style={styles.resultExam}>Session: {result.exams.classes.sessions.name}</Text>
-            ) : null}
-            {result.exams ? <Text style={styles.resultExam}>Exam: {result.exams.exam_name}</Text> : null}
-            {result.exams?.classes?.name ? <Text style={styles.resultExam}>Class: {result.exams.classes.name}</Text> : null}
+
+            <View style={styles.resultGrid}>
+              <View style={styles.resultCol}>
+                {resultStudent?.father_name ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Father</Text>
+                    <Text style={styles.resultValue}>{resultStudent.father_name}</Text>
+                  </View>
+                ) : null}
+                {resultStudent?.mother_name ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Mother</Text>
+                    <Text style={styles.resultValue}>{resultStudent.mother_name}</Text>
+                  </View>
+                ) : null}
+                {resultStudent?.address ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Address</Text>
+                    <Text style={styles.resultValue}>{resultStudent.address}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.resultRow}>
+                  <Text style={styles.resultLabel}>Roll No</Text>
+                  <Text style={styles.resultValue}>{result.roll_no}</Text>
+                </View>
+                {result.registration_no ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Reg No</Text>
+                    <Text style={styles.resultValue}>{result.registration_no}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.resultCol}>
+                <View style={styles.resultRow}>
+                  <Text style={styles.resultLabel}>Status</Text>
+                  <Text style={styles.resultValue}>{result.status_text.toUpperCase()}</Text>
+                </View>
+                {result.marks !== null ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Marks</Text>
+                    <Text style={styles.resultValue}>{String(result.marks)}</Text>
+                  </View>
+                ) : null}
+                {result.exams?.classes?.sessions?.name ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Session</Text>
+                    <Text style={styles.resultValue}>{result.exams.classes.sessions.name}</Text>
+                  </View>
+                ) : null}
+                {result.exams ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Exam</Text>
+                    <Text style={styles.resultValue}>{result.exams.exam_name}</Text>
+                  </View>
+                ) : null}
+                {result.exams?.classes?.name ? (
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Class</Text>
+                    <Text style={styles.resultValue}>{result.exams.classes.name}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
 
             <View style={styles.chipRow}>
               <TouchableOpacity style={styles.chip} onPress={handleResultPdf}>
@@ -921,8 +979,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   resultExam: {
-    marginTop: 6,
+    fontSize: 14,
     color: Colors.light.text,
     textAlign: 'center',
+  },
+  resultGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  resultCol: {
+    flex: 1,
+    gap: 8,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  resultLabel: {
+    fontSize: 13,
+    color: Colors.light.icon,
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  resultValue: {
+    fontSize: 13,
+    color: Colors.light.text,
+    fontWeight: '700',
+    textAlign: 'right',
+    flex: 1,
   },
 });

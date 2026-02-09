@@ -282,33 +282,45 @@ export default function SingleInsertScreen() {
       setError('Search and load a result first.');
       return;
     }
+
+    const runDelete = async () => {
+      setSaving(true);
+      setError(null);
+      setStatus('');
+      const { error: deleteError } = await supabase
+        .from('results')
+        .update({ status: 'inactive' })
+        .eq('id', existingResultId);
+      if (deleteError) {
+        setError(deleteError.message);
+      } else {
+        setStatus('Result removed successfully.');
+        setExistingResultId('');
+        const { data: recentResults } = await supabase
+          .from('results')
+          .select('id, roll_no, registration_no, student_name, marks, status_text')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setSavedResults(recentResults ?? []);
+      }
+      setSaving(false);
+    };
+
+    if (Platform.OS === 'web') {
+      const ok = typeof window !== 'undefined' ? window.confirm('Are you sure you want to delete this result?') : false;
+      if (!ok) return;
+      await runDelete();
+      return;
+    }
+
     Alert.alert('Delete Result', 'Are you sure you want to delete this result?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          setSaving(true);
-          setError(null);
-          setStatus('');
-          const { error: deleteError } = await supabase
-            .from('results')
-            .update({ status: 'inactive' })
-            .eq('id', existingResultId);
-          if (deleteError) {
-            setError(deleteError.message);
-          } else {
-            setStatus('Result removed successfully.');
-            setExistingResultId('');
-            const { data: recentResults } = await supabase
-              .from('results')
-              .select('id, roll_no, registration_no, student_name, marks, status_text')
-              .eq('status', 'active')
-              .order('created_at', { ascending: false })
-              .limit(15);
-            setSavedResults(recentResults ?? []);
-          }
-          setSaving(false);
+        onPress: () => {
+          runDelete();
         },
       },
     ]);
