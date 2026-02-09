@@ -84,6 +84,24 @@ export default function LoginScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.topRow}>
+        <TouchableOpacity
+          style={styles.topButton}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+            router.replace('/(tabs)' as any);
+          }}
+        >
+          <Text style={styles.topButtonText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.topButton} onPress={() => router.replace('/(tabs)' as any)}>
+          <Text style={styles.topButtonText}>Home</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.header}>
         <Text style={styles.title}>Login</Text>
         <Text style={styles.subtitle}>Continue karne ke liye login karein.</Text>
@@ -130,7 +148,24 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { padding: 20, gap: 12 },
+  content: { padding: 20, gap: 12, alignItems: 'stretch' },
+  topRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  topButton: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    flexGrow: 1,
+    alignItems: 'center',
+  },
+  topButtonText: { color: Colors.light.text, fontWeight: '700', fontFamily: 'Times New Roman' },
   header: {
     backgroundColor: Colors.light.surface,
     padding: 18,
