@@ -268,6 +268,37 @@ export default function ResultsScreen() {
     const father = resultStudent?.father_name ?? '';
     const mother = resultStudent?.mother_name ?? '';
     const addr = resultStudent?.address ?? '';
+
+    const formatIndiaDateTime = (value: string) => {
+      if (!value) return '';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return value;
+      try {
+        return parsed.toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      } catch {
+        return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+    };
+
+    const rows: [string, string, string, string][] = [
+      ['Name', data.student_name ?? '', 'Roll No', String(data.roll_no ?? '')],
+      ['DOB', String(data.dob ?? ''), 'Reg No', String(data.registration_no ?? '')],
+      ['Mobile', String(data.mobile ?? ''), 'Status', String(data.status_text?.toUpperCase?.() ?? '')],
+      ['Father', father, 'Marks', String(data.marks ?? '')],
+      ['Mother', mother, 'Exam', examName],
+      ['Address', addr, 'Exam Date', examDate ? formatIndiaDateTime(examDate) : ''],
+      ['Session', sessionName, 'Class', className],
+    ];
+
+    const renderValue = (value: string) => (value && value.trim() ? value : '-');
     return `
       <html>
         <body style="font-family: Arial, sans-serif; padding: 24px;">
@@ -280,24 +311,22 @@ export default function ResultsScreen() {
               </div>
             </div>
             <hr />
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 18px;">
               <div>
-                <p><strong>Name:</strong> ${data.student_name}</p>
-                ${father ? `<p><strong>Father Name:</strong> ${father}</p>` : ''}
-                ${mother ? `<p><strong>Mother Name:</strong> ${mother}</p>` : ''}
-                ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
-                ${data.dob ? `<p><strong>DOB:</strong> ${data.dob}</p>` : ''}
-                ${data.mobile ? `<p><strong>Mobile:</strong> ${data.mobile}</p>` : ''}
+                ${rows
+                  .map(
+                    (r) =>
+                      `<p style="margin: 0 0 10px;"><strong>${r[0]}:</strong> ${renderValue(r[1])}</p>`
+                  )
+                  .join('')}
               </div>
               <div>
-                <p><strong>Roll No:</strong> ${data.roll_no}</p>
-                ${data.registration_no ? `<p><strong>Reg No:</strong> ${data.registration_no}</p>` : ''}
-                <p><strong>Status:</strong> ${data.status_text.toUpperCase()}</p>
-                <p><strong>Marks:</strong> ${data.marks ?? '-'} </p>
-                ${sessionName ? `<p><strong>Session:</strong> ${sessionName}</p>` : ''}
-                <p><strong>Exam:</strong> ${examName}</p>
-                ${examDate ? `<p><strong>Exam Date:</strong> ${examDate}</p>` : ''}
-                ${className ? `<p><strong>Class:</strong> ${className}</p>` : ''}
+                ${rows
+                  .map(
+                    (r) =>
+                      `<p style="margin: 0 0 10px;"><strong>${r[2]}:</strong> ${renderValue(r[3])}</p>`
+                  )
+                  .join('')}
               </div>
             </div>
             <div style="margin-top:26px; display:flex; justify-content:flex-end;">
@@ -365,50 +394,60 @@ export default function ResultsScreen() {
     doc.rect(12, cardTop, 186, cardHeight);
     doc.setFontSize(11);
 
+    const formatIndiaDateTime = (value: string) => {
+      if (!value) return '';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return value;
+      try {
+        return parsed.toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      } catch {
+        return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+    };
+
     const leftX = 16;
     const rightX = 110;
     const colWidth = 86;
     const lineH = 8;
-    const maxY = cardBottom - 26;
-    let yLeft = startY + 6;
-    let yRight = startY + 6;
+    let y = startY + 6;
 
-    const writeField = (x: number, y: number, label: string, value: string, maxWidth: number) => {
+    const toStr = (v: any) => {
+      if (v === null || v === undefined) return '-';
+      const s = String(v);
+      return s.trim() ? s : '-';
+    };
+
+    const rows: [string, string, string, string][] = [
+      ['Name', toStr(result.student_name), 'Roll No', toStr(result.roll_no)],
+      ['DOB', toStr(result.dob), 'Reg No', toStr(result.registration_no)],
+      ['Mobile', toStr(result.mobile), 'Status', toStr(result.status_text?.toUpperCase?.() ?? result.status_text)],
+      ['Father', toStr(resultStudent?.father_name), 'Marks', toStr(result.marks ?? '-')],
+      ['Mother', toStr(resultStudent?.mother_name), 'Exam', toStr(result.exams?.exam_name)],
+      ['Address', toStr(resultStudent?.address), 'Exam Date', toStr(result.exams?.exam_date ? formatIndiaDateTime(result.exams.exam_date) : '-')],
+      ['Session', toStr(result.exams?.classes?.sessions?.name), 'Class', toStr(result.exams?.classes?.name)],
+    ];
+
+    const writeCell = (x: number, yPos: number, label: string, value: string) => {
       const text = `${label}: ${value}`;
-      const lines = doc.splitTextToSize(text, maxWidth);
-      doc.text(lines as any, x, y);
+      const lines = doc.splitTextToSize(text, colWidth);
+      doc.text(lines as any, x, yPos);
       return lines.length * lineH;
     };
 
-    const safeAdd = (side: 'left' | 'right', label: string, value: any) => {
-      if (value === null || value === undefined || value === '') return;
-      const x = side === 'left' ? leftX : rightX;
-      const y = side === 'left' ? yLeft : yRight;
-      if (y > maxY) return;
-      const used = writeField(x, y, label, String(value), colWidth);
-      if (side === 'left') yLeft += used;
-      else yRight += used;
-    };
-
-    safeAdd('left', 'Name', result.student_name);
-    safeAdd('left', 'DOB', result.dob);
-    safeAdd('left', 'Mobile', result.mobile);
-    safeAdd('left', 'Father', resultStudent?.father_name);
-    safeAdd('left', 'Mother', resultStudent?.mother_name);
-    safeAdd('left', 'Address', resultStudent?.address);
-
-    safeAdd('right', 'Roll No', result.roll_no);
-    safeAdd('right', 'Reg No', result.registration_no);
-    safeAdd('right', 'Status', result.status_text.toUpperCase());
-    safeAdd('right', 'Marks', result.marks ?? '-');
-
-    const firstExam = result.exams;
-    if (firstExam) {
-      safeAdd('right', 'Exam', firstExam.exam_name);
-      safeAdd('right', 'Exam Date', firstExam.exam_date);
-      safeAdd('right', 'Session', firstExam.classes?.sessions?.name);
-      safeAdd('right', 'Class', firstExam.classes?.name);
-    }
+    rows.forEach((row) => {
+      const leftH = writeCell(leftX, y, row[0], row[1]);
+      const rightH = writeCell(rightX, y, row[2], row[3]);
+      const used = Math.max(leftH, rightH);
+      y += used;
+    });
 
     drawSignature(doc, cardBottom - 16);
     doc.save(`result-${result.roll_no}.pdf`);

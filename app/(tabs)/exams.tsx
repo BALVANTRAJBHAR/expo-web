@@ -26,7 +26,19 @@ export default function ExamsScreen() {
   const formatDateTime = (value: string) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
-    return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    try {
+      return parsed.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
   };
 
   const upcoming = useMemo(() => {

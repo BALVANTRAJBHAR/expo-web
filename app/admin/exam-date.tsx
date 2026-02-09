@@ -27,11 +27,44 @@ export default function ExamDateScreen() {
     class_name: '',
   });
 
+  const formatIndiaDateTime = (value: string) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    try {
+      return parsed.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return parsed.toLocaleString();
+    }
+  };
+
+  const normalizeExamDate = (raw: string) => {
+    const input = raw.trim();
+    if (!input) return '';
+
+    const normalized = input.includes(' ') ? input.replace(' ', 'T') : input;
+
+    const hasTz = normalized.endsWith('Z') || normalized.includes('+') || normalized.includes('-00:');
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) return '';
+
+    if (hasTz) {
+      return normalized;
+    }
+    return parsed.toISOString();
+  };
+
   const formattedDate = useMemo(() => {
     if (!form.exam_date) return '';
-    const date = new Date(form.exam_date);
-    if (Number.isNaN(date.getTime())) return form.exam_date;
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return formatIndiaDateTime(form.exam_date);
   }, [form.exam_date]);
 
   useEffect(() => {
@@ -129,6 +162,13 @@ export default function ExamDateScreen() {
     setStatus('');
 
     try {
+      const examDateIso = normalizeExamDate(form.exam_date);
+      if (!examDateIso) {
+        setError('Exam date/time invalid.');
+        setSaving(false);
+        return;
+      }
+
       const sessionId = await resolveSession(form.session.trim());
       const classId = await resolveClass(form.class_name.trim(), sessionId);
 
@@ -136,7 +176,7 @@ export default function ExamDateScreen() {
         .from('exams')
         .select('id')
         .eq('exam_name', form.exam_name.trim())
-        .eq('exam_date', form.exam_date.trim())
+        .eq('exam_date', examDateIso)
         .limit(1)
         .maybeSingle();
 
@@ -148,10 +188,10 @@ export default function ExamDateScreen() {
 
       const payload = {
         exam_name: form.exam_name.trim(),
-        exam_date: form.exam_date.trim(),
+        exam_date: examDateIso,
         class_id: classId,
         is_upcoming: (() => {
-          const parsed = new Date(form.exam_date.trim()).getTime();
+          const parsed = new Date(examDateIso).getTime();
           if (Number.isNaN(parsed)) return true;
           return parsed >= Date.now();
         })(),
@@ -168,6 +208,7 @@ export default function ExamDateScreen() {
         setExistingExamId('');
         setSelectedClassId('');
         setForm((prev) => ({ ...prev, exam_name: '', exam_date: '' }));
+        setDateValue(new Date());
         const { data: recentExams } = await supabase
           .from('exams')
           .select('id, exam_name, exam_date, class_id')
@@ -202,7 +243,10 @@ export default function ExamDateScreen() {
 
     const dateTerm = form.exam_date.trim();
     if (dateTerm) {
-      query = query.eq('exam_date', dateTerm);
+      const examDateIso = normalizeExamDate(dateTerm);
+      if (examDateIso) {
+        query = query.eq('exam_date', examDateIso);
+      }
     }
 
     const { data, error: searchError } = await query.maybeSingle();
@@ -223,6 +267,10 @@ export default function ExamDateScreen() {
       exam_name: data.exam_name ?? prev.exam_name,
       exam_date: data.exam_date ?? prev.exam_date,
     }));
+    if (data.exam_date) {
+      const parsed = new Date(data.exam_date);
+      if (!Number.isNaN(parsed.getTime())) setDateValue(parsed);
+    }
     setSelectedClassId(data.class_id ?? '');
     setStatus('Exam loaded. You can update or delete.');
   };
@@ -312,13 +360,41 @@ export default function ExamDateScreen() {
             <Text style={styles.dateLabel}>Exam Date & Time</Text>
             <Text style={styles.dateValue}>{formattedDate || 'Select date & time'}</Text>
           </View>
-          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowPicker(true)}>
+          <TouchableOpacity
+            style={styles.dateBtn}
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                const suggested = (() => {
+                  const base = form.exam_date ? normalizeExamDate(form.exam_date) : '';
+                  const d = base ? new Date(base) : new Date();
+                  if (Number.isNaN(d.getTime())) return '';
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                })();
+                const value = typeof window !== 'undefined'
+                  ? window.prompt('Enter date & time (YYYY-MM-DDTHH:mm)', suggested)
+                  : null;
+                if (value) {
+                  const iso = normalizeExamDate(value);
+                  if (iso) {
+                    setForm((prev) => ({ ...prev, exam_date: iso }));
+                    const parsed = new Date(iso);
+                    if (!Number.isNaN(parsed.getTime())) setDateValue(parsed);
+                  } else {
+                    setError('Invalid date/time.');
+                  }
+                }
+                return;
+              }
+              setShowPicker(true);
+            }}
+          >
             <Text style={styles.dateBtnText}>Pick</Text>
           </TouchableOpacity>
         </View>
         {Platform.OS === 'web' ? (
           <TextInput
-            placeholder="YYYY-MM-DD HH:mm"
+            placeholder="YYYY-MM-DDTHH:mm (India time)"
             style={styles.input}
             value={form.exam_date}
             onChangeText={(value) => setForm((prev) => ({ ...prev, exam_date: value }))}
@@ -387,7 +463,7 @@ export default function ExamDateScreen() {
             {savedExams.map((row) => (
               <View key={row.id} style={styles.savedRow}>
                 <Text style={styles.savedCell}>{row.exam_name}</Text>
-                <Text style={styles.savedCell}>{row.exam_date}</Text>
+                <Text style={styles.savedCell}>{formatIndiaDateTime(row.exam_date)}</Text>
               </View>
             ))}
           </View>
