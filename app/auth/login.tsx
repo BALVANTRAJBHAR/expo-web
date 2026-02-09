@@ -84,62 +84,61 @@ export default function LoginScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <TouchableOpacity
-          style={styles.topButton}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-              return;
-            }
-            router.replace('/(tabs)' as any);
-          }}
-        >
-          <Text style={styles.topButtonText}>Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.topButton} onPress={() => router.replace('/(tabs)' as any)}>
-          <Text style={styles.topButtonText}>Home</Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.formWrap}>
+        <View style={styles.topRow}>
+          <TouchableOpacity
+            style={styles.topButton}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+                return;
+              }
+              router.replace('/(tabs)' as any);
+            }}
+          >
+            <Text style={styles.topButtonText}>Back</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Login</Text>
-        <Text style={styles.subtitle}>Continue karne ke liye login karein.</Text>
-      </View>
+        <View style={styles.header}>
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>Continue karne ke liye login karein.</Text>
+        </View>
 
-      <View style={styles.card}>
-        <TextInput
-          placeholder="Email"
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          returnKeyType="next"
-        />
-        <TextInput
-          placeholder="Password"
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          returnKeyType="done"
-          onSubmitEditing={handleLogin}
-        />
+        <View style={styles.card}>
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            returnKeyType="next"
+          />
+          <TextInput
+            placeholder="Password"
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}
+          />
 
-        <TouchableOpacity style={styles.cta} onPress={handleLogin} disabled={loading}>
-          <Text style={styles.ctaText}>{loading ? 'Logging in...' : 'Login'}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.cta} onPress={handleLogin} disabled={loading}>
+            <Text style={styles.ctaText}>{loading ? 'Logging in...' : 'Login'}</Text>
+          </TouchableOpacity>
 
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
 
-        <View style={styles.linkRow}>
-          <Link href={'/auth/register' as any} style={styles.link}>
-            Create account
-          </Link>
-          <Link href={'/auth/forgot' as any} style={styles.link}>
-            Forgot password?
-          </Link>
+          <View style={styles.linkRow}>
+            <Link href={'/auth/register' as any} style={styles.link}>
+              Create account
+            </Link>
+            <Link href={'/auth/forgot' as any} style={styles.link}>
+              Forgot password?
+            </Link>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -148,11 +147,16 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  content: { padding: 20, gap: 12, alignItems: 'stretch' },
+  content: { padding: 20, gap: 12, alignItems: 'center' },
+  formWrap: {
+    width: '100%',
+    maxWidth: 520,
+    gap: 12,
+  },
   topRow: {
     width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 10,
   },
   topButton: {
@@ -162,8 +166,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    flexGrow: 1,
     alignItems: 'center',
+    alignSelf: 'flex-start',
   },
   topButtonText: { color: Colors.light.text, fontWeight: '700', fontFamily: 'Times New Roman' },
   header: {
